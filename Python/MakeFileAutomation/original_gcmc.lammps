@@ -1,0 +1,261 @@
+
+# Parameters
+variable bar_to_atm index 0.98692
+variable pressure_bar equal 1.0
+variable pressure equal ${pressure_bar}*${bar_to_atm}
+variable T equal 298.0 # temperature of the ideal gas reservoir (temperature units)
+variable fugacity_coeff equal 0.75
+variable mu equal 0.0 # chemical potential of the ideal gas reservoir (energy units)
+
+# Data folder name
+variable data_folder string "EPM2F_T=${T}K_P=${pressure_bar}bar_revised"
+
+# Make directory
+shell mkdir ./${data_folder}
+shell mkdir ./${data_folder}/data
+shell mkdir ./${data_folder}/cfg
+
+log ./${data_folder}/log.dat
+
+#################### Variables ####################
+# Step
+variable relax_step equal 5000
+variable prod_step equal 5000
+
+variable thermo_interval equal 1
+variable dt index 0.5
+variable cfg_interval equal 100
+variable dump_interval equal 10
+variable neighbor_interval equal 1
+
+# ave/time
+variable Nevery equal 1
+variable Nrepeat equal 10
+variable Nfreq equal 10
+
+# NVT
+variable Tdamp equal ${dt}*100.0
+
+# GCMC
+variable Ngas_init equal 500
+variable N equal 1 # invoke this fix every N steps
+variable seed equal 102486
+variable displace equal 2.0 # displacement
+
+# RDF
+variable Nbin equal 200
+
+#################### Conditions ####################
+atom_style full
+units real
+dimension 3
+boundary p p p
+timestep ${dt}
+processors 1 1 1
+
+variable skin equal 2.0*${displace}*${neighbor_interval}
+neighbor ${skin} bin
+neigh_modify every ${neighbor_interval} delay 0 check yes 
+
+#################### kspace ####################
+kspace_style pppm 1.0E-5
+
+#################### HKUST-1 (Zhao's) ####################
+read_data ../../../generate_init/inmc/in111_cif.dat
+
+# van der Waals (Lennard-Jones)
+pair_style lj/cut/coul/long 12.0
+pair_coeff 1 1 0.005 3.114 # Cu-Cu
+pair_coeff 2 2 0.096 3.033 # O(1)-O(1)
+pair_coeff 3 3 0.096 3.033 # O(2)-O(2)
+pair_coeff 4 4 0.095 3.473 # C(1)-C(1)
+pair_coeff 5 5 0.095 3.473 # C(2)-C(2)
+pair_coeff 6 6 0.095 3.473 # C(3)-C(3)
+pair_coeff 7 7 0.015 2.846 # H-H
+
+# Bond Potential (Morse)
+bond_style morse
+bond_coeff 1 85.769 2.85 1.969 # Cu-O
+bond_coeff 2 135.00 2.00 1.260 # O-C(1)
+bond_coeff 3 87.84  2.00 1.456 # C(1)-C(2)
+bond_coeff 4 120.0  2.00 1.355 # C(2)-C(3)
+bond_coeff 5 116.0  1.77 0.931 # C(3)-H
+
+# Angle Potential
+angle_style harmonic
+angle_coeff 1  50.160  170.2 # O(1)-Cu-O(1)
+angle_coeff 2  50.160  170.2 # O(2)-Cu-O(2)
+angle_coeff 3  12.000  90.0 # O(1)-Cu-O(2)
+angle_coeff 4  40.470  127.5 # Cu-O-C(1)
+angle_coeff 5  145.000 128.5 # O-C(1)-O
+angle_coeff 6  54.495  116.2 # O-C(1)-C(2)
+angle_coeff 7  34.680  119.9 # C(1)-C(2)-C(3)
+angle_coeff 8  90.000  120.1 # C(3)-C(2)-C(3)
+angle_coeff 9  90.000  119.9 # C(2)-C(3)-C(2)
+angle_coeff 10 37.000  120.0 # C(2)-C(3)-H
+
+# Dihedral type potential
+dihedral_style harmonic
+dihedral_coeff 1 3.00 -1 2 # Cu-O-C(1)-C(2)
+dihedral_coeff 2 3.00 -1 2 # Cu-O-C(1)-O
+dihedral_coeff 3 3.00 -1 2 # C(2)-C(3)-C(2)-C(3)
+dihedral_coeff 4 3.00 -1 2 # C(1)-C(2)-C(3)-C(2)
+dihedral_coeff 5 3.00 -1 2 # C(1)-C(2)-C(3)-H
+dihedral_coeff 6 3.00 -1 2 # C(3)-C(2)-C(3)-H
+dihedral_coeff 7 2.50 -1 2 # O-C(1)-C(2)-C(3)
+
+# Improper torsion type potential
+improper_style cvff
+improper_coeff 1 0.37 -1 2 # H-C(3)-C(2)-C(2)
+improper_coeff 2 10.0 -1 2 # C(1)-C(2)-C(3)-C(3)
+improper_coeff 3 10.0 -1 2 # C(2)-C(1)-O-O
+
+#################### CO2 (EPM2) ####################
+molecule co2 ../../../co2_models/EPM2_withMOF.txt
+
+# van der Waals (Lennard-Jones)
+# REF
+# Carbon Dioxide’s Liquid-Vapor Coexistence Curve and Critical Properties As Predictedby a Simple Molecular Model
+# Jonathan G. Harris'" and Kwong H. Yung+Department of Chemical Engineering, Massachusetts Institute of Technology,25 Ames Street, Room 66-450, Cambridge, Massachusetts 02139Received: March 14, 1995; In Final Form: May 18, 1995sWe present a simple site-based intermolecular potential model for carbon dioxide (the EPM model). It usespoint charges and Lennard-Jones interactions centered at each atom. The model predicts a coexistence curveand critical properties quite close to the experimental values. The EPM model predicts a critical temperatureof 313.4 ± 0.7 K compared with an experimental critical temperature of 304 K. By rescaling the potentialparameters of the EPM model to obtain the model denoted as “EPM2”, we more accurately reproduce theliquid—vapor coexistence curve. A flexible EPM model with rigid bonds, but a flexible angle exhibits identicalcoexistence properties to within the sensitivity of our calculations.IntroductionCarbon dioxide is a product of many industrial processes, aswell as a useful raw material. Recently, many researchers havedevoted attention to the possibility of using either liquid orsupercritical carbon dioxide as solvents for chemical reactions.1,2The development of accurate physical models for solutesolubility and reaction rates in liquid and supercritical carbondioxide requires a model for intermolecular interactions betweencarbon dioxide molecules as well as interactions between thissolvent and any solutes. Once a model for carbon dioxide hasbeen selected, it is important to characterize it with itspredictions of the equation of state, the liquid—vapor coexistencecurve, and the critical point properties.In this work we propose a simple model for carbon dioxidethat researchers can readily apply in molecular simulation studiesof multicomponent systems. We then locate its critical pointfor both rigid and flexible versions of the model. This is thefirst attempt to locate the critical point of any model for CO2.Model and MethodsSeveral earlier workers have proposed models for carbondioxide.3-9 Our model has three Lennard-Jones sites withcharges centered at each atom. The carbon—oxygen bonds arerigid and 1.163 A long. This simple model is unique in that ituses point charges centered at atom sites and has a quadrupolemoment of 4.3 x 10-26 esu (statcoulomb cm2 or 4.3 Bucking-hams21), which is insignificantly different from the experimentalvalue of 4.1 x 10-26esu.10 Because it is perhaps the simplestmodel suitable for simulations of simple mixtures, we refer toit as the elementary physical model (EPM). We examined twovariations of this model—a completely rigid object and a modelwith rigid bond lengths but with a flexible bond angle potentialof V2 ke(6 —Oo)2. Table 1 shows our potential parameters.In optimizing the Lennard-Jones parameters, we started withthose of Murthy, Singer, and McDonald4 and decreased theoxygen and carbon Lennard-Jones core diameters to get thecorrect pressure and internal energy at 239 K. We also usedpoint charges that reproduced the gas phase quadrupole momentof 4.3 Buckinghams,3 instead of the point quadrupole of ref 4.* Author to whom correspondence should be addressed.1Department of Physics.8 Abstract published in Advance ACS Abstracts, July 1, 1995.TABLE 1: Potential Function Parameters for CCh”EPM Model€c~c 28.999 K o0-0 3.064 A lc-0 1.161 AOq—C 2.785 A ec-0 49.060 K kg 1275 kJ/mol/rad260-O 82.997 K <7c-0 2.921 A 9c +0.6645 eEPM2 Model (EPM rescaled to reproduce critical properties)ec-c 28.129 K a0-o 3.033 A lc-0 1.149 A<Jc-c 2.757 A ec-„ 47.588 K kg 1236 kJ/mol/rad2fo-o 80.507 K CTc-0 2.892 A 9c +0.6512 e“ e and o are the Lennard-Jones well depth and core diameter in theinteratomic potential, u(r) = 4e[(olr)n —(air)6]. The subscripts referto the particular atomic pairs interacting. /c-0 is the carbon—oxygenbond length, kg is the bond bending force constant for the bondstretching potential (for flexible model only), and u{6) = 1/2 kg (6 —Oo)2 where 60 is 180°. qc is the charge on the carbon center (positive).There are two equal negative charges on the oxygen centers so thatthe net charge of the molecule is zero.References 4 and 7 and others have employed quadrupolemoments that are either significantly smaller or larger than thegas phase value. For interactions between unlike atoms, weused the geometric mean combining rule.We determined the coexistence curve using the Gibbsensemble technique.11,12 In this technique there are twononinteracting subsystems. Monte Carlo moves include mol-ecule translations; molecule rotations about a randomly chosenaxis in either the x, y, or z direction;13,14 volume exchanges;and particle exchanges. Volume exchanges involve the uniformdilation of one system and the uniform contraction of the other,keeping the sum of their volumes constant. The acceptanceand rejection rules are described in other works.11,12,15For the flexible model, during each rotation attempt we alsorandomly selected for the trial configuration a new bond anglewith unnormalized probability P(0) =exp(—k$(0 —Oo)2/(2koT)). Such a procedure meets the detailed balance conditionas long as the change in the bond angle energy is not includedin the energy change used to determine whether or not to acceptthe new configuration. This approach is conceptually similarto that of Smit, Karabomi, and Siepmann’s treatment ofalkanes.16With the exception of the 308 K run, the densities of thecoexisting fluids are the average densities in the two subsystems.Because the 308 K run showed large fluctuations, we used thetwo maxima in the histogram of instantaneous densities in bothsystems as the values of the mean liquid and vapor densities.0022-3654/95/2099-12021 $09.00/0 &copy; 1995 American Chemical Society
+pair_coeff 8 8 0.055898 2.757 # C(CO2)-C(CO2)
+pair_coeff 8 9 0.094567 2.892 # C(CO2)-O(CO2)
+pair_coeff 9 9 0.159984 3.033 # O(CO2)-O(CO2)
+pair_modify mix geometric
+
+# Bond Potential
+bond_coeff 6 481.776 2.35 1.149  # bond_type D alpha r_0
+
+# Angle Potential
+angle_coeff 11 147.7 180.0  #angle_type, K, theta_0
+
+#################### Initialization ####################
+create_atoms 0 random ${Ngas_init} ${seed} NULL mol co2 625 overlap 2.0
+velocity all create ${T} ${seed} dist gaussian
+minimize 1.0e-4 1.0e-6 1000 10000
+
+reset_timestep 0
+
+#################### Group Setting ####################
+group cu type 1
+group o1 type 2
+group o2 type 3
+group c1 type 4
+group c2 type 5
+group c3 type 6
+group h type 7
+group mof type 1:7
+group o_mof type 2 3
+group c type 8
+group o type 9
+group gas type 8 9
+
+#################### Additional variables ####################
+variable Ngas equal count(gas)/3
+
+#################### TEMPERATURE ####################
+# dynamic -> due to the number of gas molecules is changed
+compute gas_temp_d gas temp
+compute_modify gas_temp_d dynamic/dof yes
+
+#################### PRESSURE ####################
+# for overall system
+compute all_pressure all pressure gas_temp_d
+
+#################### GCMC (relax) ####################
+fix nvt_gas gas nvt temp ${T} ${T} ${Tdamp}
+fix_modify nvt_gas temp gas_temp_d
+
+fix gcmc_relax gas gcmc ${N} 100 100 0 ${seed} ${T} ${mu} ${displace} mol co2 &
+    pressure ${pressure} fugacity_coeff ${fugacity_coeff} group gas
+
+thermo_style custom step c_gas_temp_d c_all_pressure v_Ngas etotal pe ke
+thermo ${thermo_interval}
+
+run ${relax_step}
+
+#################### GCMC (production) ####################
+unfix gcmc_relax
+
+reset_timestep 0
+
+#################### TEMPERATURE ####################
+# dynamic -> due to the number of gas molecules is changed
+fix gas_temp_d_out gas ave/time ${Nevery} ${Nrepeat} ${Nfreq} c_gas_temp_d file ./${data_folder}/data/temperature.dat mode scalar
+
+#################### PRESSURE ####################
+# for overall system
+fix all_pressure_out all ave/time ${Nevery} ${Nrepeat} ${Nfreq} c_all_pressure file ./${data_folder}/data/pressure.dat mode scalar
+
+# dynamic -> due to the number of gas molecules is changed
+# for gas
+compute gas_pressure gas stress/atom gas_temp_d virial
+compute gas_pressure_ave gas reduce ave c_gas_pressure[*]
+fix gas_pressure_ave_out gas ave/time ${Nevery} ${Nrepeat} ${Nfreq} c_gas_pressure_ave[*] file ./${data_folder}/data/pressure_ave.dat
+
+#################### RDF ####################
+compute rdf_Cu all rdf ${Nbin} 1 8 # Cu-CO2
+compute rdf_O1 all rdf ${Nbin} 2 8 # O1-CO2
+compute rdf_O2 all rdf ${Nbin} 3 8 # O2-CO2
+compute rdf_C1 all rdf ${Nbin} 4 8 # C1-CO2
+compute rdf_C2 all rdf ${Nbin} 5 8 # C2-CO2
+compute rdf_C3 all rdf ${Nbin} 6 8 # C3-CO2
+compute rdf_H  all rdf ${Nbin} 7 8 #  H-CO2
+
+fix rdf_Cu_output all ave/time ${Nevery} ${prod_step} ${prod_step} c_rdf_Cu[*] file ./${data_folder}/data/rdf_Cu.dat mode vector
+fix rdf_O1_output all ave/time ${Nevery} ${prod_step} ${prod_step} c_rdf_O1[*] file ./${data_folder}/data/rdf_O1.dat mode vector
+fix rdf_O2_output all ave/time ${Nevery} ${prod_step} ${prod_step} c_rdf_O2[*] file ./${data_folder}/data/rdf_O2.dat mode vector
+fix rdf_C1_output all ave/time ${Nevery} ${prod_step} ${prod_step} c_rdf_C1[*] file ./${data_folder}/data/rdf_C1.dat mode vector
+fix rdf_C2_output all ave/time ${Nevery} ${prod_step} ${prod_step} c_rdf_C2[*] file ./${data_folder}/data/rdf_C2.dat mode vector
+fix rdf_C3_output all ave/time ${Nevery} ${prod_step} ${prod_step} c_rdf_C3[*] file ./${data_folder}/data/rdf_C3.dat mode vector
+fix rdf_H_output  all ave/time ${Nevery} ${prod_step} ${prod_step} c_rdf_H[*]  file ./${data_folder}/data/rdf_H.dat  mode vector
+
+#################### ENERGY ####################
+compute ke_all all ke
+compute pe_all all pe
+compute ke_mof_peratom mof ke/atom
+compute pe_mof_peratom mof pe/atom
+compute ke_mof mof reduce sum c_ke_mof_peratom
+compute pe_mof mof reduce sum c_pe_mof_peratom
+compute ke_gas_peratom gas ke/atom
+compute pe_gas_peratom gas pe/atom
+compute ke_gas gas reduce sum c_ke_gas_peratom
+compute pe_gas gas reduce sum c_pe_gas_peratom
+
+variable etotal_all equal c_ke_all+c_pe_all
+variable etotal_mof equal c_ke_mof+c_pe_mof
+variable etotal_gas equal c_ke_gas+c_pe_gas
+
+fix ene_all all ave/time ${Nevery} ${Nrepeat} ${Nfreq} c_ke_all c_pe_all v_etotal_all file ./${data_folder}/data/energy_all.dat mode scalar
+fix ene_mof mof ave/time ${Nevery} ${Nrepeat} ${Nfreq} c_ke_mof c_pe_mof v_etotal_mof file ./${data_folder}/data/energy_mof.dat mode scalar
+fix ene_gas gas ave/time ${Nevery} ${Nrepeat} ${Nfreq} c_ke_gas c_pe_gas v_etotal_gas file ./${data_folder}/data/energy_gas.dat mode scalar
+
+dump ene_gas_per_atom gas custom 10 ./${data_folder}/data/energy_gas_per_atom.dat id type x y z c_ke_gas_peratom c_pe_gas_peratom
+dump ene_mof_per_atom gas custom 10 ./${data_folder}/data/energy_mof_per_atom.dat id type x y z c_ke_mof_peratom c_pe_mof_peratom
+
+#################### NUMBER OF MOLECULES ####################
+fix fix_Ngas all ave/time 1 1 1 v_Ngas file ./${data_folder}/data/Ngas.dat mode scalar
+
+#################### Output Setting ####################
+dump cfg all cfg ${cfg_interval} ./${data_folder}/cfg/*.cfg mass type xs ys zs id type q
+dump_modify cfg element Cu O O C C C H C O
+
+dump dump_all all atom ${dump_interval} ./${data_folder}/data/dump.dat
+
+# GCMC
+fix gcmc_prod gas gcmc ${N} 100 100 0 ${seed} ${T} ${mu} ${displace} mol co2 &
+    pressure ${pressure} fugacity_coeff ${fugacity_coeff} group gas
+
+# Acceptance
+variable trans_atmpt equal f_gcmc_prod[1]
+variable trans_ok equal f_gcmc_prod[2]
+variable ins_atmpt equal f_gcmc_prod[3]
+variable ins_ok equal f_gcmc_prod[4]
+variable del_atmpt equal f_gcmc_prod[5]
+variable del_ok equal f_gcmc_prod[6]
+
+fix acceptance all ave/time 1 1 1 v_trans_ok v_trans_atmpt v_ins_ok v_ins_atmpt v_del_ok v_del_atmpt file ./${data_folder}/data/acceptance.dat mode scalar
+
+run ${prod_step}
+
+#################### Final position ####################
+write_data ./${data_folder}/data/gcmc.data
