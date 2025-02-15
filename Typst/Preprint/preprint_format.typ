@@ -50,7 +50,7 @@
 
 // 図表のキャプション
 #let styled_caption(caption) = {
-  text(caption, size: 9.5pt)
+  text(caption, size: 9pt)
 }
 
 // // コンテンツを文字列に変換: 変更不要
@@ -68,7 +68,7 @@
 
 // 空白行: 変更不要
 #let empty_par() = {
-  v(-1em)
+  v(-0.25em)
   box()
 }
 
@@ -94,30 +94,29 @@
       let el = it.element
       let loc = el.location()
 
-      // link(loc)[
-      //   #if el.kind == "image" or el.kind == "table" {
-      //     let num = global_table_counter.at(loc).at(0) + 1
-      //     it.element.supplement
-      //     " "
-      //     str(num)
-      //   } else if el.kind == "thmenv" {
-      //     let thms = query(selector(<meta:thmenvcounter>).after(loc), loc)
-      //     let number = thmcounters.at(thms.first().location()).at("latest")
-      //     it.element.supplement
-      //     " "
-      //     numbering(it.element.numbering, ..number)
-      //   } else {
-      //     it
-      //   }
-      // ]
+      link(loc)[
+        #if el.kind == "image" or el.kind == "table" {
+          let num = counter(el.kind + "-counter").at(loc).at(0) + 1
+          it.element.supplement
+          " "
+          str(num)
+        } else if el.kind == "thmenv" {
+          let thms = query(selector(<meta:thmenvcounter>).after(loc), loc)
+          let number = thmcounters.at(thms.first().location()).at("latest")
+          it.element.supplement
+          " "
+          numbering(it.element.numbering, ..number)
+        } else {
+          it
+        }
+      ]
     } else if it.element != none and it.element.func() == math.equation {
       let el = it.element
       let loc = el.location()
-      let num = global_equation_counter.at(loc).at(0) + 1
-      it.element.supplement
-      " ("
+      let chapt = counter(heading).at(loc).at(0)
+      let num = counter(math.equation).at(loc).at(0)
+      "Eq. "
       str(num)
-      ")"
     } else if it.element != none and it.element.func() == heading {
       let el = it.element
       let loc = el.location()
@@ -125,6 +124,9 @@
       if el.level == 1 {
         str(num)
         "章"
+      } else {
+        str(num)
+        "節"
       }
     } else {
       it
@@ -135,7 +137,7 @@
   show figure: it => {
     set align(center)
     if it.kind == "image" {
-      set text(size: 9.5pt)
+      set text(size: 9pt)
       it.body
       it.supplement
       " " + it.counter.display(it.numbering)
@@ -146,12 +148,12 @@
         c.step()
       })
     } else if it.kind == "table" {
-      set text(size: 9.5pt)
+      set text(size: 9pt)
       it.supplement
       " " + it.counter.display(it.numbering)
       " " + it.caption.body
       "."
-      set text(size: 9.5pt)
+      set text(size: 9pt)
       it.body
       locate(loc => {
         let c = counter("table-counter")
@@ -168,7 +170,7 @@
   // 本文フォントを設定
   set text(
     font: ("Times New Roman", "Yu Mincho"),
-    size: 9.5pt,
+    size: 9pt,
   )
 
   // ページのプロパティを設定
@@ -184,7 +186,7 @@
   counter(page).update(1)
 
   // Configure paragraph properties.
-  set par(spacing: 1em, leading: 0.75em, first-line-indent: 1em, justify: true)
+  set par(spacing: 0.5em, leading: 0.5em, first-line-indent: 1em, justify: true)
 
   // サブセクションの書式 ("2.1"など)
   set heading(
@@ -200,6 +202,7 @@
     // 付録など章番号を付けない場合も考慮
     let pre_chapt = if it.numbering != none {
       text()[
+        #v(0.5em)
         #numbering(it.numbering, ..counter(heading).at(it.location()))
         #h(0.5em)
       ]
@@ -215,6 +218,7 @@
     set text(weight: "bold", size: 10.5pt, font: ("Yu Gothic", "Times New Roman"))
     let pre_chapt = {
       text()[
+        #v(0.5em)
         #numbering(it.numbering, ..counter(heading).at(it.location()))
         #h(0.5em)
       ]
@@ -223,7 +227,7 @@
       #pre_chapt
       #it.body \
     ]
-  }
+  } + empty_par()
 
   show heading: it => {
     set par(leading: 0.78em, first-line-indent: 0em, justify: true)
@@ -236,7 +240,7 @@
     top,
     float: true,
     scope: "parent",
-    text(size: 9.5pt)[
+    text(size: 9pt)[
       #presentation #h(1fr) #date.at(0) 年 #date.at(1) 月 #date.at(2) 日
     ],
   )
@@ -245,8 +249,8 @@
     top + center,
     float: true,
     scope: "parent",
-    text(font: "Yu Mincho", size: 12pt, weight: "bold")[
-      #v(15pt)
+    text(font: "Yu Gothic", size: 12pt, weight: "bold")[
+      #v(10pt)
       #title
     ],
   )
@@ -255,11 +259,9 @@
     top,
     float: true,
     scope: "parent",
-    text(size: 9.5pt)[
-      #v(10pt)
-      #h(1fr) #university #faculty #department #major \
-      #h(1fr) #field #laboratory #author
-      #v(10pt)
+    text(size: 9pt)[
+      #v(5pt)
+      #h(1fr) #major #field #laboratory #author
     ],
   )
 
@@ -273,7 +275,7 @@
 
   // 参考文献: bibliography-fileで設定したBiBTeX形式ファイル
   if bibliography-file != none {
-    show bibliography: set text(9pt, lang: "en")
+    show bibliography: set text(6pt, lang: "en")
     bibliography(bibliography-file, title: "参考文献", style: "ieee")
   }
 }
