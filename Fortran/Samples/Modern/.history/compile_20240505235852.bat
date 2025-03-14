@@ -1,1 +1,0 @@
-gfortran a.f95 b.f95 c.f95 -o ファイル名
